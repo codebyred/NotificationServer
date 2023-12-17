@@ -1,11 +1,12 @@
 import {Server} from "socket.io"
 import {notifs} from "./notifications.js"
 
-
+const connectedUser = {};
 const io =  new Server(
 {
     cors: {
-        origin: ["http://localhost:5173"]
+        origin: ["http://localhost:5173", "http://localhost:5174"],
+        methods: ["GET", "POST"],
     }
 });
 
@@ -34,6 +35,8 @@ io.of('/').use((socket, next)=>{
 
 io.of('/').on("connection",(socket)=>{
 
+    connectedUser[socket.id] = socket;
+
     //if user got any notifications while offline
     if(notifs[socket.id]){
 
@@ -47,11 +50,15 @@ io.of('/').on("connection",(socket)=>{
     } 
        
     socket.on("notify",(data)=>{ 
-        
+
         // Directly send notification to user when connected
-        if(io.of('/').sockets.get(data.receiver)){
-            console.log(data);
-            return io.of('/').sockets.get(data.receiver).emit("new_notif",data);
+        // if(io.of('/').sockets.get(data.receiver)){
+        //     console.log(data);
+        //     return io.of('/').sockets.get(data.receiver).emit("new_notif",data);
+
+        // }
+        if(connectedUser[data.receiver]){
+            return connectedUser[data.receiver].emit("new_notif",data);
 
         }
         // Store notification to send later when user connects
@@ -65,14 +72,13 @@ io.of('/').on("connection",(socket)=>{
 
 
     socket.on("disconnect",()=>{
+        connectedUser[socket.id] = null;
         console.log("user disconnected");
     })
 
 });
 
-io.listen(4000,()=>{
-    console.log("socket server started");
-});
+io.listen(4000);
 
 
 
